@@ -3,10 +3,14 @@ file "#{$root}/gen/champsim/riscv.h" => "#{$root}/.stamps/arch-gen-champsim.stam
 
   File.open t.name, "w" do |file|
     file.write <<~CC
+      #ifndef RISCV_H
+      #define RISCV_H
+
       #include <cstdint>
       #include <optional>
 
-      #include "ir2.h"
+      #include "branch_type.h"
+      #include "prefetch.h"
 
       namespace champsim::riscv {
 
@@ -101,74 +105,50 @@ file "#{$root}/gen/champsim/riscv.h" => "#{$root}/.stamps/arch-gen-champsim.stam
       end
 
       case name
-      when 'add'
-        op = 'LISA_ADD_D'
-      when 'addi'
-        op = 'LISA_ADDI_D'
-      when 'addiw'
-        op = 'LISA_ADDI_W'
-      when 'addw'
-        op = 'LISA_ADD_W'
-      when 'and'
-        op = 'LISA_AND'
-      when 'andi'
-        op = 'LISA_ANDI'
-      when 'fld'
-        op = 'LISA_FLD_D'
-      when 'flw'
-        op = 'LISA_FLD_S'
-      when 'lb'
-        op = 'LISA_LD_B'
-      when 'lbu'
-        op = 'LISA_LD_BU'
-      when 'ld'
-        op = 'LISA_LD_D'
-      when 'lh'
-        op = 'LISA_LD_H'
-      when 'lhu'
-        op = 'LISA_LD_HU'
-      when 'lr_w'
-        op = 'LISA_LL_W'
-      when 'lr_d'
-        op = 'LISA_LL_D'
-      when 'lw'
-        op = 'LISA_LD_W'
-      when 'lwu'
-        op = 'LISA_LD_WU'
-      when 'mul', 'mulh', 'mulhsu', 'mulhu'
-        op = 'LISA_MUL_W'
-      when 'or', 'ori'
-        op = 'LISA_OR'
-      when 'sll', 'slli'
-        op = 'LISA_SLLI_D'
-      when 'sllw', 'slliw'
-        op = 'LISA_SLLI_W'
-      when 'sra'
-        op = 'LISA_SRA_D'
-      when 'srai'
-        op = 'LISA_SRAI_D'
-      when 'sraiw'
-        op = 'LISA_SRAI_W'
-      when 'sraw'
-        op = 'LISA_SRA_W'
-      when 'srl'
-        op = 'LISA_SRL_D'
-      when 'srli'
-        op = 'LISA_SRLI_D'
-      when 'srliw'
-        op = 'LISA_SRLI_W'
-      when 'srlw'
-        op = 'LISA_SRL_W'
-      when 'sub'
-        op = 'LISA_SUB_D'
+      when 'addiw', 'addw'
+        idm_op = 'IDM_ADD_W'
+      when 'add', 'addi'
+        idm_op = 'IDM_ADD_D'
       when 'subw'
-        op = 'LISA_SUB_W'
-      when 'xor'
-        op = 'LISA_XOR'
-      when 'xori'
-        op = 'LISA_XORI'
+        idm_op = 'IDM_SUB_W'
+      when 'sub'
+        idm_op = 'IDM_SUB_D'
+      when 'and', 'andi'
+        idm_op = 'IDM_AND'
+      when 'or', 'ori'
+        idm_op = 'IDM_OR'
+      when 'xor', 'xori'
+        idm_op = 'IDM_XOR'
+      when 'mul'
+        idm_op = 'IDM_MUL_D'
+      when 'srliw', 'srlw'
+        idm_op = 'IDM_SRL_W'
+      when 'srl', 'srli'
+        idm_op = 'IDM_SRL_D'
+      when 'sllw', 'slliw'
+        idm_op = 'IDM_SLLI_W'
+      when 'sll', 'slli'
+        idm_op = 'IDM_SLLI_D'
+      when 'sraiw', 'sraw'
+        idm_op = 'IDM_SRA_W'
+      when 'sra', 'srai'
+        idm_op = 'IDM_SRA_D'
+      when 'lb'
+        idm_op = 'IDM_LD_B'
+      when 'lbu'
+        idm_op = 'IDM_LD_BU'
+      when 'lh'
+        idm_op = 'IDM_LD_H'
+      when 'lhu'
+        idm_op = 'IDM_LD_HU'
+      when 'flw', 'lr.w', 'lw'
+        idm_op = 'IDM_LD_W'
+      when 'lwu'
+        idm_op = 'IDM_LD_WU'
+      when 'fld', 'ld', 'lr.d'
+        idm_op = 'IDM_LD_D'
       else
-        op = 'LISA_INVALID'
+        idm_op = 'IDM_INVALID'
       end
 
       case name
@@ -187,34 +167,33 @@ file "#{$root}/gen/champsim/riscv.h" => "#{$root}/.stamps/arch-gen-champsim.stam
       end
 
       file.write <<~CC
-        op = #{op};
+        idm_op = #{idm_op};
         ls_size = #{ls_size};
-        unsign_ext = #{%W[lbu lhu lwu].include?(name)};
         } else
       CC
     end
 
     file.write <<~CC
       {
-      op = LISA_INVALID;
+      idm_op = IDM_INVALID;
       source_registers[0] = UINT8_MAX;
       destination_registers[0] = UINT8_MAX;
       branch_type = NOT_BRANCH;
       ls_size = 0;
-      unsign_ext = false;
       }
       }
 
-      IR2_OPCODE op;
+      IDM_OP idm_op;
       std::optional<uint32_t> imm;
       uint8_t source_registers[3];
       uint8_t destination_registers[1];
       uint8_t branch_type;
       uint8_t ls_size;
-      bool unsign_ext;
       };
 
       }
+
+      #endif
     CC
   end
 end
